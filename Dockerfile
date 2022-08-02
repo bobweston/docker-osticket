@@ -1,12 +1,12 @@
-# Deployment doesn't work on Alpine
-FROM php:7.3-cli AS deployer
-ENV OSTICKET_VERSION=1.14.3
+FROM php:7.4-cli AS deployer 
+ENV OSTICKET_VERSION=1.15.4
 RUN set -x \
     && apt-get update \
     && apt-get install -y git-core \
     && git clone -b v${OSTICKET_VERSION} --depth 1 https://github.com/osTicket/osTicket.git \
     && cd osTicket \
     && php manage.php deploy -sv /data/upload \
+    && mkdir /data/upload/images/attachments \
     # www-data is uid:gid 82:82 in php:7.0-fpm-alpine
     && chown -R 82:82 /data/upload \
     # Hide setup
@@ -14,13 +14,15 @@ RUN set -x \
     && chown -R root:root /data/upload/setup_hidden \
     && chmod -R go= /data/upload/setup_hidden
 
-FROM php:7.3-fpm-alpine
+FROM php:7.4-fpm-alpine
 MAINTAINER Martin Campbell <martin@campbellsoftware.co.uk>
 # environment for osticket
 ENV HOME=/data
 # setup workdir
 WORKDIR /data
 COPY --from=deployer /data/upload upload
+RUN apk add --no-cache libzip-dev zip && docker-php-ext-configure zip && docker-php-ext-install zip && docker-php-ext-install pdo pdo_mysql
+
 RUN set -x && \
     # requirements and PHP extensions
     apk add --no-cache --update \
@@ -48,7 +50,7 @@ RUN set -x && \
         g++ \
         make \
         pcre-dev && \
-    docker-php-ext-install gd curl ldap mysqli sockets gettext mbstring xml intl opcache && \
+    docker-php-ext-install gd curl ldap mysqli sockets gettext xml intl opcache && \
     docker-php-ext-configure imap --with-imap-ssl && \
     docker-php-ext-install imap && \
     pecl install apcu && docker-php-ext-enable apcu && \
@@ -71,6 +73,6 @@ RUN set -x && \
     mkdir -p /var/tmp/nginx && \
     chown nginx:www-data /var/tmp/nginx && chmod g+rx /var/tmp/nginx
 COPY files/ /
-VOLUME ["/data/upload/include/plugins","/data/upload/include/i18n","/var/log/nginx"]
+VOLUME ["/data/upload/include/plugins","/data/upload/include/i18n","/var/log/nginx","/data/upload/images/attachments"]
 EXPOSE 80
 CMD ["/data/bin/start.sh"]
