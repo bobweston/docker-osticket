@@ -1,5 +1,5 @@
-FROM php:7.4-cli AS deployer 
-ENV OSTICKET_VERSION=1.15.4
+FROM php:8.0-cli AS deployer 
+ENV OSTICKET_VERSION=1.16.3
 RUN set -x \
     && apt-get update \
     && apt-get install -y git-core \
@@ -7,15 +7,14 @@ RUN set -x \
     && cd osTicket \
     && php manage.php deploy -sv /data/upload \
     && mkdir /data/upload/images/attachments \
-    # www-data is uid:gid 82:82 in php:7.0-fpm-alpine
     && chown -R 82:82 /data/upload \
     # Hide setup
     && mv /data/upload/setup /data/upload/setup_hidden \
     && chown -R root:root /data/upload/setup_hidden \
     && chmod -R go= /data/upload/setup_hidden
 
-FROM php:7.4-fpm-alpine
-MAINTAINER Martin Campbell <martin@campbellsoftware.co.uk>
+FROM php:8.0-fpm-alpine
+MAINTAINER Martin Campbell <martin@campbellsoftware.co.uk>. Updated to support php 8 and osticket 16.3 by Bob Weston
 # environment for osticket
 ENV HOME=/data
 # setup workdir
@@ -24,7 +23,6 @@ COPY --from=deployer /data/upload upload
 RUN apk add --no-cache libzip-dev zip && docker-php-ext-configure zip && docker-php-ext-install zip && docker-php-ext-install pdo pdo_mysql
 
 RUN set -x && \
-    # requirements and PHP extensions
     apk add --no-cache --update \
         wget \
         msmtp \
